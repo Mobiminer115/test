@@ -10,29 +10,47 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-15
+    env:
+      THEOS: ${{ github.workspace }}/theos
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Theos
-        uses: Randomblock1/theos-action@v1
-        with:
-          theos-dir: ${{ github.workspace }}/theos
-          theos-src: https://github.com/theos/theos
-          theos-sdks: https://github.com/theos/sdks
-          theos-sdks-branch: master
+      - name: Install build tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          brew install ldid make
+          echo "$(brew --prefix make)/libexec/gnubin" >> "$GITHUB_PATH"
+
+      - name: Clone Theos
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --recursive https://github.com/theos/theos.git "$THEOS"
+          mkdir -p "$THEOS/sdks"
+
+      - name: Install patched iOS SDK via Git
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_REPO="$RUNNER_TEMP/theos-sdks"
+          git clone --depth 1 https://github.com/theos/sdks.git "$SDK_REPO"
+          test -d "$SDK_REPO/iPhoneOS16.5.sdk"
+          ditto "$SDK_REPO/iPhoneOS16.5.sdk" "$THEOS/sdks/iPhoneOS16.5.sdk"
+          test -f "$THEOS/sdks/iPhoneOS16.5.sdk/System/Library/Frameworks/UIKit.framework/Headers/UIView.h"
 
       - name: Build ARM64 dylib
         shell: bash
         run: |
           set -euo pipefail
           make clean
-          make
+          make FINALPACKAGE=1
           DYLIB="$(find .theos -type f -name 'CW3UnitEditor.dylib' -print -quit)"
           if [[ -z "$DYLIB" ]]; then
             echo "CW3UnitEditor.dylib was not produced"
-            find .theos -maxdepth 5 -type f -print || true
+            find .theos -maxdepth 6 -type f -print || true
             exit 1
           fi
           mkdir -p dist
