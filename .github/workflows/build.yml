@@ -1,0 +1,49 @@
+name: Build CW3 Unit Editor
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Theos
+        uses: Randomblock1/theos-action@v1
+        with:
+          theos-dir: ${{ github.workspace }}/theos
+          theos-src: https://github.com/theos/theos
+          theos-sdks: https://github.com/theos/sdks
+          theos-sdks-branch: master
+
+      - name: Build ARM64 dylib
+        shell: bash
+        run: |
+          set -euo pipefail
+          make clean
+          make
+          DYLIB="$(find .theos -type f -name 'CW3UnitEditor.dylib' -print -quit)"
+          if [[ -z "$DYLIB" ]]; then
+            echo "CW3UnitEditor.dylib was not produced"
+            find .theos -maxdepth 5 -type f -print || true
+            exit 1
+          fi
+          mkdir -p dist
+          cp "$DYLIB" dist/CW3UnitEditor-arm64.dylib
+          file dist/CW3UnitEditor-arm64.dylib
+          xcrun lipo -verify_arch arm64 dist/CW3UnitEditor-arm64.dylib
+
+      - name: Upload dylib artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CW3UnitEditor-arm64
+          path: dist/CW3UnitEditor-arm64.dylib
+          if-no-files-found: error
+          retention-days: 14
