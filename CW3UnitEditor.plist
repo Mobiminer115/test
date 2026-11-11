@@ -1,0 +1,7 @@
+{
+    Filter = {
+        Bundles = (
+            "com.gamevil.cartoonwars3.ios.apple.global.normal"
+        );
+    };
+}
