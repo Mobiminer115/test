@@ -47,16 +47,18 @@ jobs:
           set -euo pipefail
           make clean
           make FINALPACKAGE=1
-          DYLIB="$(find .theos -type f -name 'CW3UnitEditor.dylib' -print -quit)"
+          DYLIB="$(find .theos/_ -type f -name 'CW3UnitEditor.dylib' -print -quit)"
           if [[ -z "$DYLIB" ]]; then
-            echo "CW3UnitEditor.dylib was not produced"
-            find .theos -maxdepth 6 -type f -print || true
+            echo "Staged CW3UnitEditor.dylib was not found; listing staged dylibs:"
+            find .theos/_ -type f -name '*.dylib' -print || true
+            echo "Listing object outputs (excluding dSYM):"
+            find .theos/obj -type d -name '*.dSYM' -prune -o -type f -name '*.dylib' -print || true
             exit 1
           fi
           mkdir -p dist
           cp "$DYLIB" dist/CW3UnitEditor-arm64.dylib
           file dist/CW3UnitEditor-arm64.dylib
-          xcrun lipo -verify_arch arm64 dist/CW3UnitEditor-arm64.dylib
+          xcrun lipo dist/CW3UnitEditor-arm64.dylib -verify_arch arm64
 
       - name: Upload dylib artifact
         uses: actions/upload-artifact@v4
